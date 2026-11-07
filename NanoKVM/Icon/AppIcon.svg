@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="shaft" gradientUnits="userSpaceOnUse" x1="318" y1="0" x2="500" y2="0">
+      <stop offset="0" stop-color="#f05f37"/>
+      <stop offset="0.5" stop-color="#eb8a5a"/>
+      <stop offset="1" stop-color="#f7e4c0"/>
+    </linearGradient>
+    <filter id="paper" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" seed="11" result="fiber"/>
+      <feDiffuseLighting in="fiber" surfaceScale="0.9" diffuseConstant="1.1" lighting-color="#ffffff" result="relief">
+        <feDistantLight azimuth="225" elevation="62"/>
+      </feDiffuseLighting>
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.035" numOctaves="3" seed="4" result="mottle"/>
+      <feColorMatrix in="mottle" type="matrix" values="0.14 0 0 0 0.96  0.14 0 0 0 0.96  0.14 0 0 0 0.96  0 0 0 0 1" result="mottleGray"/>
+      <feComposite in="relief" in2="mottleGray" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="light"/>
+      <feComposite in="SourceGraphic" in2="light" operator="arithmetic" k1="1.0" k2="0" k3="0" k4="0" result="lit"/>
+      <feComposite in="lit" in2="SourceGraphic" operator="in"/>
+    </filter>
+    <filter id="lift" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#2a1a0a" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#lift)">
+    <g filter="url(#paper)">
+      <!-- dark silhouette: phone + laptop lid -->
+      <path fill="#1b2e3d" d="M139 249 A58 58 0 0 1 197 191 H372 C410 191 420 215 432 245 C440 268 455 278 480 278 H830 A30 30 0 0 1 860 308 V655 H430 L345 804 H197 A58 58 0 0 1 139 746 Z"/>
+
+      <!-- laptop base -->
+      <path fill="#3d5568" d="M408 655 H866 Q872 655 876 662 L922 750 Q929 762 927 775 H345 Q350 745 372 704 L394 664 Q399 655 408 655 Z"/>
+      <path fill="#1b2e3d" d="M345 772 H927 V792 Q927 804 913 804 H680 Q668 804 664 792 H602 Q598 804 586 804 H358 Q340 804 345 772 Z"/>
+      <g fill="#1b2e3d">
+        <rect x="432" y="672" width="47" height="19" rx="7"/>
+        <rect x="484" y="672" width="47" height="19" rx="7"/>
+        <rect x="535" y="672" width="47" height="19" rx="7"/>
+        <rect x="587" y="672" width="47" height="19" rx="7"/>
+        <rect x="638" y="672" width="47" height="19" rx="7"/>
+        <rect x="690" y="672" width="47" height="19" rx="7"/>
+        <rect x="741" y="672" width="47" height="19" rx="7"/>
+        <rect x="793" y="672" width="47" height="19" rx="7"/>
+        <rect x="418" y="695" width="56" height="20" rx="7"/>
+        <rect x="479" y="695" width="47" height="20" rx="7"/>
+        <rect x="531" y="695" width="210" height="20" rx="7"/>
+        <rect x="746" y="695" width="47" height="20" rx="7"/>
+        <rect x="798" y="695" width="57" height="20" rx="7"/>
+        <rect x="549" y="726" width="166" height="36" rx="10"/>
+      </g>
+
+      <!-- laptop screen and dark chevron -->
+      <rect x="462" y="309" width="367" height="319" rx="28" fill="#f7e4c0"/>
+      <path fill="#1b2e3d" d="M462 335 Q500 335 530 366 L608 444 Q634 472 608 500 L530 578 Q500 606 462 606 Z"/>
+
+      <!-- phone screen -->
+      <path fill="#f05f37" d="M162 263 A48 48 0 0 1 210 215 H214 C224 215 222 236 242 236 H312 C332 236 330 215 340 215 H352 A36 36 0 0 1 388 251 V262 Q388 274 372 278 Q358 282 358 288 Q358 302 372 302 H438 Q452 302 452 314 Q452 326 438 326 H313 Q289 328 289 350 Q289 372 313 374 H370 Q383 374 383 386 Q383 397 370 397 H337 Q313 399 313 419 Q313 438 335 440 V503 Q307 505 307 526 Q307 546 330 548 H418 Q430 548 430 560 Q430 572 418 572 H392 Q379 572 379 584 Q379 596 392 596 H420 Q433 596 433 608 Q433 620 420 620 C395 632 372 650 359 698 C350 730 346 750 330 766 L318 768 H198 A36 36 0 0 1 162 732 Z"/>
+      <rect x="411" y="354" width="48" height="16" rx="8" fill="#f05f37"/>
+      <rect x="223" y="747" width="59" height="12" rx="6" fill="#1b2e3d"/>
+
+      <!-- arrow -->
+      <rect x="313" y="440" width="232" height="62" fill="url(#shaft)"/>
+      <path d="M492 414 L544 472 L492 530" fill="none" stroke="#f7e4c0" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M492 440 H545 V502 H492 Z" fill="#f7e4c0"/>
+    </g>
+  </g>
+</svg>

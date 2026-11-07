@@ -1,0 +1,10 @@
+NanoKVM turns your iPhone, iPad or Mac into a remote screen, keyboard and mouse for a Sipeed NanoKVM.
+
+• Low-latency H.264 / H.265 video of the target computer
+• Keyboard and mouse, including a trackpad mode on iPhone and iPad
+• Custom EDID matched to your display for a sharp, 1:1 picture
+• Mount ISO and disk images, Wake-on-LAN, paste text
+• Manage Wi-Fi, Tailscale, SSH, firmware updates and more on the KVM
+• Devices are found automatically on your network; credentials stay in your iCloud Keychain
+
+A NanoKVM device is required.

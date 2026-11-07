@@ -1,0 +1,177 @@
+default_platform(:ios)
+
+PROJECT = "NanoKVM/NanoKVM.xcodeproj"
+SCHEME = "NanoKVM"
+BUILD_DIR = File.expand_path("../build", __dir__)
+
+# App Store Connect API key (no password / 2FA prompts). See fastlane/.env.default.example.
+def connect_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ENV["ASC_KEY_PATH"],
+    key_content: ENV["ASC_KEY_CONTENT"],
+    in_house: false
+  )
+end
+
+def next_build_number(platform)
+  connect_api_key
+  latest_testflight_build_number(platform: platform, initial_build_number: 0) + 1
+end
+
+def unit_tests(destination)
+  run_tests(
+    project: PROJECT,
+    scheme: SCHEME,
+    destination: destination,
+    result_bundle: true,
+    output_directory: File.join(BUILD_DIR, "tests"),
+    clean: false
+  )
+end
+
+# Lets xcodebuild create/download cloud-managed signing assets without an Apple ID in Xcode.
+def auth_args
+  "-allowProvisioningUpdates -authenticationKeyPath #{ENV.fetch("ASC_KEY_PATH")} " \
+    "-authenticationKeyID #{ENV.fetch("ASC_KEY_ID")} -authenticationKeyIssuerID #{ENV.fetch("ASC_ISSUER_ID")}"
+end
+
+def archive(destination:, build_number:, sdk: nil)
+  build_app(
+    sdk: sdk,
+    project: PROJECT,
+    scheme: SCHEME,
+    configuration: "Release",
+    destination: destination,
+    export_method: "app-store",
+    output_directory: BUILD_DIR,
+    xcargs: "-allowProvisioningUpdates CURRENT_PROJECT_VERSION=#{build_number}",
+    export_xcargs: auth_args
+  )
+end
+
+platform :ios do
+  desc "Run the unit tests on an iOS simulator"
+  lane :test do
+    unit_tests("platform=iOS Simulator,name=#{ENV.fetch("IOS_SIMULATOR", "iPhone 18 Pro")}")
+  end
+
+  desc "Archive and upload an iOS/iPadOS build to TestFlight"
+  lane :beta do |options|
+    test unless options[:skip_tests]
+    number = next_build_number("ios")
+    archive(destination: "generic/platform=iOS", build_number: number)
+    connect_api_key
+    upload_to_testflight(
+      skip_waiting_for_build_processing: options.fetch(:skip_waiting, true),
+      changelog: options[:changelog]
+    )
+  end
+
+  desc "Upload only the App Store text metadata (no binary)"
+  lane :metadata do
+    connect_api_key
+    upload_to_app_store(
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false
+    )
+  end
+
+  desc "Upload only the staged screenshots (fastlane/screenshots/ios), see scripts/screenshots/publish.sh"
+  lane :screenshots do
+    connect_api_key
+    upload_to_app_store(
+      skip_binary_upload: true,
+      skip_metadata: true,
+      screenshots_path: "./fastlane/screenshots/ios",
+      overwrite_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false
+    )
+  end
+
+  desc "Upload a build and submit it for App Store review (iOS)"
+  lane :release do |options|
+    test unless options[:skip_tests]
+    number = next_build_number("ios")
+    archive(destination: "generic/platform=iOS", build_number: number)
+    connect_api_key
+    upload_to_app_store(
+      skip_screenshots: true,
+      force: true,
+      submit_for_review: options.fetch(:submit, false),
+      automatic_release: false,
+      precheck_include_in_app_purchases: false
+    )
+  end
+end
+
+platform :mac do
+  desc "Run the unit tests on this Mac"
+  lane :test do
+    unit_tests("platform=macOS")
+  end
+
+  desc "Archive and upload a macOS build to TestFlight"
+  lane :beta do |options|
+    test unless options[:skip_tests]
+    number = next_build_number("osx")
+    archive(destination: "generic/platform=macOS", build_number: number, sdk: "macosx")
+    connect_api_key
+    upload_to_testflight(
+      app_platform: "osx",
+      skip_waiting_for_build_processing: options.fetch(:skip_waiting, true),
+      changelog: options[:changelog]
+    )
+  end
+
+  desc "Upload only the staged screenshots (fastlane/screenshots/mac), see scripts/screenshots/publish.sh"
+  lane :screenshots do
+    connect_api_key
+    upload_to_app_store(
+      platform: "osx",
+      skip_binary_upload: true,
+      skip_metadata: true,
+      screenshots_path: "./fastlane/screenshots/mac",
+      overwrite_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false
+    )
+  end
+
+  desc "Upload a macOS build to App Store Connect (and optionally submit it)"
+  lane :release do |options|
+    test unless options[:skip_tests]
+    number = next_build_number("osx")
+    archive(destination: "generic/platform=macOS", build_number: number, sdk: "macosx")
+    connect_api_key
+    upload_to_app_store(
+      platform: "osx",
+      skip_screenshots: true,
+      force: true,
+      submit_for_review: options.fetch(:submit, false),
+      automatic_release: false,
+      precheck_include_in_app_purchases: false
+    )
+  end
+end
+
+desc "Regenerate every app icon PNG from NanoKVM/Icon/AppIcon.svg"
+lane :icons do
+  sh("NODE_PATH=${ICON_NODE_MODULES:-/tmp/icons/node_modules} node ../scripts/make-icons.mjs")
+end
+
+desc "Run the unit tests on macOS and on an iOS simulator"
+lane :test_all do
+  Fastlane::LaneManager.cruise_lane("mac", "test")
+  Fastlane::LaneManager.cruise_lane("ios", "test")
+end
+
+desc "Upload the same TestFlight build for iOS and macOS"
+lane :beta_all do |options|
+  Fastlane::LaneManager.cruise_lane("ios", "beta", options)
+  Fastlane::LaneManager.cruise_lane("mac", "beta", options.merge(skip_tests: true))
+end

@@ -1,0 +1,3 @@
+overwrite_screenshots(false)
+run_precheck_before_submit(true)
+metadata_path("./fastlane/metadata")

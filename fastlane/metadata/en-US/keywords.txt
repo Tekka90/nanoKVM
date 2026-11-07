@@ -1,0 +1,1 @@
+KVM,remote,desktop,NanoKVM,Sipeed,IPKVM,wake,ISO,console,headless

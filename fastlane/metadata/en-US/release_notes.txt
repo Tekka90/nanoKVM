@@ -1,0 +1,1 @@
+Improved reconnection after the app was in the background, and a new app icon.

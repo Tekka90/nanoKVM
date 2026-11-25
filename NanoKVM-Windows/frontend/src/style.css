@@ -1,0 +1,399 @@
+:root {
+  color: #e8edf5;
+  background: #11151b;
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 760px;
+  min-height: 520px;
+}
+
+button {
+  color: inherit;
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px;
+  background: #171c24;
+  border-right: 1px solid #2b3440;
+}
+
+.brand {
+  padding: 4px 12px 22px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+nav {
+  display: grid;
+  gap: 4px;
+}
+
+nav button,
+.rail-actions button,
+header button {
+  padding: 10px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+}
+
+nav button:hover,
+nav button.active,
+.rail-actions button:hover:not(:disabled) {
+  background: #263241;
+}
+
+.rail-actions {
+  display: grid;
+  gap: 4px;
+  margin-top: auto;
+}
+
+body.native-fullscreen .shell {
+  display: block;
+}
+
+body.native-fullscreen .rail {
+  position: fixed;
+  z-index: 20;
+  inset: 0 auto 0 0;
+  width: 220px;
+  transform: translateX(-206px);
+  transition: transform 160ms ease;
+}
+
+body.native-fullscreen.reveal-rail .rail,
+body.native-fullscreen .rail:hover {
+  transform: translateX(0);
+}
+
+button:disabled {
+  opacity: 0.45;
+}
+
+main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 0 24px;
+  border-bottom: 1px solid #2b3440;
+}
+
+header button {
+  background: #2563eb;
+}
+
+.header-context {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-context select {
+  min-width: 170px;
+  padding: 7px 10px;
+  color: #e8edf5;
+  background: #171c24;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.header-context select.connected {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #22c55e;
+}
+
+header .header-context button {
+  padding: 7px 10px;
+  text-align: center;
+  background: #2563eb;
+}
+
+.screen {
+  display: grid;
+  flex: 1;
+  padding: 20px;
+  place-items: center;
+}
+
+.native-surface {
+  display: grid;
+  width: min(900px, 90%);
+  aspect-ratio: 16 / 9;
+  align-content: center;
+  justify-items: center;
+  color: #aeb7c4;
+  background: #080a0d;
+  border: 1px solid #343d49;
+  border-radius: 12px;
+}
+
+.native-surface:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.screen-actions {
+  display: flex;
+  align-self: end;
+  gap: 8px;
+  margin-top: -60px;
+}
+
+.screen-actions button {
+  padding: 9px 12px;
+  color: #e8edf5;
+  background: #263241;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.global-error {
+  min-height: 0;
+  padding: 0 24px;
+  color: #fecaca;
+  background: #451a1a;
+}
+
+.global-error:not(:empty) {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.global-result {
+  max-height: 180px;
+  overflow: auto;
+  padding: 0 24px;
+  color: #bbf7d0;
+  background: #14351f;
+  white-space: pre-wrap;
+}
+
+.global-result:not(:empty) {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.page-state pre {
+  overflow: auto;
+  max-height: 420px;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+}
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.sticky-modifiers {
+  display: flex;
+  gap: 8px;
+}
+
+.sticky-modifiers button {
+  padding: 8px 12px;
+  color: inherit;
+  background: #263241;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.sticky-modifiers button.active {
+  background: #2563eb;
+}
+
+.shortcut-grid button {
+  padding: 8px;
+  color: inherit;
+  background: #263241;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  background: #f59e0b;
+  border-radius: 50%;
+}
+
+.capability-note {
+  max-width: 560px;
+  padding: 0 24px;
+  color: #fbbf24;
+  text-align: center;
+}
+
+.stats-history {
+  display: flex;
+  height: 48px;
+  align-items: end;
+  gap: 2px;
+  grid-column: 1 / -1;
+}
+
+.stats-history i {
+  display: block;
+  width: 3px;
+  background: #3b82f6;
+}
+
+.page-card {
+  margin: 24px;
+  padding: 24px;
+  background: #171c24;
+  border: 1px solid #2b3440;
+  border-radius: 12px;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 0;
+  align-content: start;
+}
+
+.page-card p {
+  color: #aeb7c4;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.controls button {
+  padding: 9px 12px;
+  color: #e8edf5;
+  background: #263241;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.controls button.destructive {
+  color: #fecaca;
+  border-color: #7f1d1d;
+}
+
+.controls button.confirm {
+  box-shadow: inset 0 0 0 1px #f59e0b;
+}
+
+.field,
+.toggle {
+  display: grid;
+  min-width: 180px;
+  gap: 6px;
+}
+
+.field input {
+  padding: 8px 10px;
+  color: #e8edf5;
+  background: #0f1319;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.toggle {
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.integration-status {
+  grid-column: 1 / -1;
+}
+
+dialog {
+  width: min(460px, 90vw);
+  color: #e8edf5;
+  background: #171c24;
+  border: 1px solid #465467;
+  border-radius: 12px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 70%);
+}
+
+dialog form {
+  display: grid;
+  gap: 14px;
+}
+
+dialog label {
+  display: grid;
+  gap: 6px;
+}
+
+dialog input {
+  padding: 9px 10px;
+  color: inherit;
+  background: #0f1319;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-actions button {
+  padding: 8px 12px;
+  color: inherit;
+  background: #263241;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
+.dialog-actions button:last-child {
+  background: #2563eb;
+}
+
+.form-error {
+  color: #fca5a5;
+}
+
+.page-card dl {
+  display: grid;
+  gap: 12px;
+}
+
+.page-card dl div {
+  display: grid;
+  grid-template-columns: 140px 90px 1fr;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #2b3440;
+}

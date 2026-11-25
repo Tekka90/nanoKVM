@@ -24,3 +24,8 @@ DerivedData/
 /1024.png
 docs/anssi/*.pdf
 fastlane/screenshots/
+/NanoKVM-Windows/frontend/node_modules/
+/NanoKVM-Windows/frontend/dist/
+/NanoKVM-Windows/target/
+/NanoKVM-Windows/target-windows/
+/NanoKVM-Windows/src-tauri/gen/

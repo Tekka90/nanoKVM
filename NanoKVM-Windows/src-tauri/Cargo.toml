@@ -1,0 +1,40 @@
+[package]
+name = "nanokvm-windows"
+version = "0.1.0"
+description = "Portable NanoKVM client for Windows"
+authors = ["NanoKVM contributors"]
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "nanokvm_windows_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+nanokvm-core = { path = "../crates/nanokvm-core" }
+futures-util = "0.3"
+flume = "0.11"
+native-tls = "0.2"
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2", features = [] }
+tokio = { version = "1", features = ["macros", "sync", "time"] }
+tokio-tungstenite = { version = "0.28", features = ["connect", "native-tls"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+mdns-sd = "0.17"
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", default-features = false, features = ["windows-native"] }
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+    "Win32_Media_MediaFoundation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+] }

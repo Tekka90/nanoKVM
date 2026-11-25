@@ -1,0 +1,76 @@
+name: Windows
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-ci.yml"
+      - "NanoKVM-Windows/**"
+  push:
+    branches:
+      - main
+      - ci/windows-build
+    paths:
+      - ".github/workflows/windows-ci.yml"
+      - "NanoKVM-Windows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build unsigned release
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: NanoKVM-Windows
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: NanoKVM-Windows
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: NanoKVM-Windows/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Test Rust workspace
+        run: cargo test --workspace --locked
+
+      - name: Test frontend
+        run: npm --prefix frontend test
+
+      - name: Build frontend
+        run: npm --prefix frontend run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version ^2 --locked
+
+      - name: Build unsigned Windows executable
+        run: cargo tauri build --bundles none
+
+      - name: Upload unsigned executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: nanokvm-windows-${{ github.sha }}
+          path: NanoKVM-Windows/target/release/nanokvm-windows.exe
+          if-no-files-found: error

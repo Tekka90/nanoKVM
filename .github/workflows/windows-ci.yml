@@ -66,7 +66,7 @@ jobs:
         run: cargo install tauri-cli --version ^2 --locked
 
       - name: Build unsigned Windows executable
-        run: cargo tauri build --bundles none
+        run: cargo tauri build --no-bundle
 
       - name: Upload unsigned executable
         uses: actions/upload-artifact@v4

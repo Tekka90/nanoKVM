@@ -24,7 +24,7 @@ pub enum CoreError {
     MissingNalUnits,
     #[error("the session is not connected")]
     NotConnected,
-    #[error("the requested operation is not available")]
+    #[error("the requested operation is not available: {0}")]
     Unsupported(String),
     #[error("invalid device address: {0}")]
     InvalidAddress(String),
@@ -42,4 +42,18 @@ pub enum CoreError {
     MissingData,
     #[error("the authentication response did not contain a token")]
     MissingToken,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CoreError;
+
+    #[test]
+    fn unsupported_errors_include_the_specific_reason() {
+        let error = CoreError::Unsupported("native Direct3D presenter is not attached".into());
+        assert_eq!(
+            error.to_string(),
+            "the requested operation is not available: native Direct3D presenter is not attached"
+        );
+    }
 }

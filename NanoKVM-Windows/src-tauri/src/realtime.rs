@@ -11,7 +11,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::{Message, http::HeaderValue};
 use tokio_tungstenite::{Connector, connect_async_tls_with_config};
 
-use crate::video_backend::create_backend;
+use crate::video_backend::{create_backend, presentation_unavailable};
 
 const PING_INTERVAL: Duration = Duration::from_secs(5);
 const STALL_TIMEOUT: Duration = Duration::from_secs(15);
@@ -148,11 +148,22 @@ async fn run_video_socket<R: Runtime>(
     video_last_packet: &AtomicU64,
 ) -> Result<(), String> {
     let mut backend = create_backend();
-    backend
-        .configure(codec)
-        .map_err(|error| error.to_string())?;
+    let capabilities = backend.capabilities();
+    let presentation_error = presentation_unavailable(&capabilities);
+    if presentation_error.is_none() {
+        backend
+            .configure(codec)
+            .map_err(|error| error.to_string())?;
+    }
     let mut socket = connect(client, path, true).await?;
-    emit_status(app, device_id, "video", true, attempts, None);
+    emit_status(
+        app,
+        device_id,
+        "video",
+        true,
+        attempts,
+        presentation_error.map(str::to_owned),
+    );
     let mut last_data = tokio::time::Instant::now();
     let mut ping = tokio::time::interval(PING_INTERVAL);
     ping.tick().await;
@@ -181,8 +192,10 @@ async fn run_video_socket<R: Runtime>(
                     Message::Binary(payload) => {
                         let packet = VideoPacket::parse(codec, &payload)
                             .map_err(|error| error.to_string())?;
-                        backend.submit(codec, &packet.annex_b)
-                            .map_err(|error| error.to_string())?;
+                        if presentation_error.is_none() {
+                            backend.submit(codec, &packet.annex_b)
+                                .map_err(|error| error.to_string())?;
+                        }
                         last_data = tokio::time::Instant::now();
                         packets += 1;
                         bytes += packet.annex_b.len() as u64;

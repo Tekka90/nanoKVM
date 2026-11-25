@@ -11,6 +11,12 @@ pub(crate) struct VideoCapabilities {
     pub hardware_h265: bool,
 }
 
+pub(crate) const PRESENTATION_UNAVAILABLE: &str = "Native video presentation is unavailable: the Direct3D child surface is not attached to the Tauri window. The authenticated video WebSocket can still verify that packets arrive, but this build does not use a web or canvas fallback.";
+
+pub(crate) fn presentation_unavailable(capabilities: &VideoCapabilities) -> Option<&'static str> {
+    (!capabilities.native_surface).then_some(PRESENTATION_UNAVAILABLE)
+}
+
 pub(crate) trait NativeVideoBackend {
     fn capabilities(&self) -> VideoCapabilities;
     fn configure(&mut self, codec: VideoCodec) -> Result<()>;
@@ -345,5 +351,14 @@ mod tests {
             backend.configure(VideoCodec::H264),
             Err(CoreError::Unsupported(_))
         ));
+    }
+
+    #[test]
+    fn missing_native_surface_has_an_actionable_reason() {
+        let capabilities = DisabledVideoBackend.capabilities();
+        assert_eq!(
+            presentation_unavailable(&capabilities),
+            Some(PRESENTATION_UNAVAILABLE)
+        );
     }
 }

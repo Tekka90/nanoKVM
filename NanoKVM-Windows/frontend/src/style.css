@@ -323,6 +323,14 @@ header .header-context button {
   border-radius: 7px;
 }
 
+.field select {
+  padding: 8px 10px;
+  color: #e8edf5;
+  background: #0f1319;
+  border: 1px solid #3c4b5c;
+  border-radius: 7px;
+}
+
 .toggle {
   grid-auto-flow: column;
   align-items: center;

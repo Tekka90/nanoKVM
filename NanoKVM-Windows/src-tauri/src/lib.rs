@@ -21,7 +21,7 @@ mod video_backend;
 
 use realtime::{RealtimeControl, timestamp_ms};
 use storage::{DeviceCatalog, SecretStore};
-use video_backend::{VideoCapabilities, create_backend};
+use video_backend::{PRESENTATION_UNAVAILABLE, VideoCapabilities, create_backend};
 
 const CREDENTIAL_SERVICE: &str = "org.jupille.NanoKVM.Windows";
 
@@ -50,11 +50,16 @@ struct LoginCommandResult {
 
 #[tauri::command]
 fn app_features() -> Vec<FeatureState> {
+    let video = create_backend().capabilities();
     vec![
         FeatureState {
             name: "screen",
-            available: false,
-            detail: "Authenticated WebSocket supervision is implemented; native Media Foundation presentation requires Windows.",
+            available: video.native_surface,
+            detail: if video.native_surface {
+                "Native Media Foundation decoding and Direct3D presentation are available."
+            } else {
+                PRESENTATION_UNAVAILABLE
+            },
         },
         FeatureState {
             name: "authentication",

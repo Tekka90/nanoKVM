@@ -1,7 +1,7 @@
 export interface Control {
   label: string;
   action: string;
-  kind: "button" | "text" | "toggle" | "password";
+  kind: "button" | "text" | "toggle" | "password" | "select";
   destructive?: boolean;
   requiresConfirmation?: boolean;
 }
@@ -181,12 +181,13 @@ export const sections: Record<Page, PageSection[]> = {
     },
     {
       title: "Display and input",
-      description: "HDMI capture, EDID, pointer mode, HID reset, mouse jiggler and pointer tuning.",
+      description: "Choose an available EDID or generate one for the monitor holding this window. EDID changes interrupt HDMI briefly; first confirm that the NanoKVM has its own USB-C power.",
       controls: [
         { label: "HDMI capture", action: "hdmi-capture", kind: "toggle" },
+        { label: "External USB-C power connected", action: "edid-power-confirmed", kind: "toggle" },
+        { label: "EDID", action: "edid-picker", kind: "select" },
         { label: "Upload EDID", action: "edid-upload", kind: "button", requiresConfirmation: true },
-        { label: "Select EDID", action: "edid-set", kind: "button", requiresConfirmation: true },
-        { label: "Delete EDID", action: "edid-delete", kind: "button", destructive: true, requiresConfirmation: true },
+        { label: "Delete selected custom EDID", action: "edid-delete", kind: "button", destructive: true, requiresConfirmation: true },
         { label: "Auto-match display on connect", action: "edid-auto-switch", kind: "toggle", requiresConfirmation: true },
         { label: "Match local display", action: "edid-match-display", kind: "button", requiresConfirmation: true },
         { label: "Pointer mode", action: "pointer-mode", kind: "text" },

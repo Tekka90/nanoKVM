@@ -3,6 +3,7 @@ import { pageFromHash } from "./types";
 import { sections } from "./catalog";
 import { eventCodeToHid } from "./keyboard";
 import { appendSample, sampleStats, summarize } from "./stats";
+import { builtinEdids, edidAutoKey, edidLabel, edidPowerKey, edidState } from "./edid";
 
 describe("pageFromHash", () => {
   it("matches known pages case-insensitively", () => {
@@ -32,6 +33,43 @@ describe("pageFromHash", () => {
     const network = sections.Network.flatMap((section) => section.controls);
     expect(network.find((control) => control.action === "wifi-disconnect")?.requiresConfirmation).toBe(true);
     expect(network.find((control) => control.action === "reboot")).toBeUndefined();
+  });
+
+  it("presents built-in and uploaded EDIDs without asking for a file name", () => {
+    const settings = sections.Settings.flatMap((section) => section.controls);
+    expect(settings.find((control) => control.action === "edid-picker")?.kind).toBe("select");
+    expect(settings.find((control) => control.action === "edid-power-confirmed")?.kind).toBe("toggle");
+    expect(settings.find((control) => control.action === "edid-set")).toBeUndefined();
+  });
+
+  it("parses the current EDID and custom upload list from API state", () => {
+    const builtIn = builtinEdids[0]!;
+    const state = edidState({
+      values: {
+        edid: { edid: builtIn.id },
+        custom_edid: { edidList: ["Desk_Screen.bin", "Desk_Screen.bin"] },
+      },
+      errors: {},
+    });
+    expect(state.current).toBe(builtIn.id);
+    expect(state.custom).toEqual(["Desk_Screen.bin"]);
+    expect(state.options).toContainEqual({
+      id: "Desk_Screen.bin",
+      label: "Desk Screen",
+      custom: true,
+    });
+  });
+
+  it("keeps an unknown current EDID visible and scopes power confirmation per device", () => {
+    const state = edidState({
+      values: { edid: { edid: "factory-special.bin" }, custom_edid: {} },
+      errors: {},
+    });
+    expect(state.options.at(-1)?.id).toBe("factory-special.bin");
+    expect(edidLabel("factory-special.bin")).toBe("factory-special");
+    expect(edidPowerKey("device-a")).toBe("edid-power-confirmed:device-a");
+    expect(edidPowerKey("device-a")).not.toBe(edidPowerKey("device-b"));
+    expect(edidAutoKey("device-a")).not.toBe(edidAutoKey("device-b"));
   });
 
   it("maps physical keyboard and shortcut keys to USB HID usages", () => {

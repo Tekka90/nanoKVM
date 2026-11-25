@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { eventCodeToHid } from "./keyboard";
 import { appendSample, sampleStats, summarize, type StatBaseline, type StatSample } from "./stats";
 import { sections, type Control } from "./catalog";
+import { edidAutoKey, edidPowerKey, edidState } from "./edid";
 import {
   pageFromHash,
   pages,
@@ -56,7 +57,13 @@ function controlMarkup(control: Control): string {
   ]
     .filter(Boolean)
     .join(" ");
-  const connected = state.connectedId ? "" : " disabled";
+  const needsEdidPower =
+    control.action.startsWith("edid-") &&
+    control.action !== "edid-power-confirmed";
+  const disabled =
+    !state.connectedId || (needsEdidPower && !edidPowerConfirmed())
+      ? " disabled"
+      : "";
   if (control.kind === "text" || control.kind === "password") {
     const appliesOnChange = control.action === "wol-mac" || control.action === "wol-name"
       ? ""
@@ -65,17 +72,21 @@ function controlMarkup(control: Control): string {
       control.action === "pointer-sensitivity"
         ? ` value="${state.pointerSensitivity}"`
         : "";
-    return `<label class="field"><span>${html(control.label)}</span><input type="${control.kind}" data-value-for="${control.action}"${appliesOnChange}${value} autocomplete="off"${connected} /></label>`;
+    return `<label class="field"><span>${html(control.label)}</span><input type="${control.kind}" data-value-for="${control.action}"${appliesOnChange}${value} autocomplete="off"${disabled} /></label>`;
   }
   if (control.kind === "toggle") {
     const checked =
-      control.action === "edid-auto-switch" &&
-      window.localStorage.getItem("edid-auto-switch") === "true"
+      (control.action === "edid-auto-switch" &&
+        edidAutoSwitchEnabled()) ||
+      (control.action === "edid-power-confirmed" && edidPowerConfirmed())
         ? " checked"
         : "";
-    return `<label class="toggle"><span>${html(control.label)}</span><input type="checkbox" data-action="${control.action}"${checked}${connected} /></label>`;
+    return `<label class="toggle"><span>${html(control.label)}</span><input type="checkbox" data-action="${control.action}"${checked}${disabled} /></label>`;
   }
-  return `<button class="${classes}" data-action="${control.action}"${connected}>${html(control.label)}</button>`;
+  if (control.kind === "select") {
+    return `<label class="field"><span>${html(control.label)}</span><select data-action="${control.action}"${disabled}><option>Loading…</option></select></label>`;
+  }
+  return `<button class="${classes}" data-action="${control.action}"${disabled}>${html(control.label)}</button>`;
 }
 
 function pageBody(page: Page, features: FeatureState[]): string {
@@ -259,6 +270,67 @@ function selectedDeviceId(): string {
   );
 }
 
+function edidPowerConfirmed(): boolean {
+  return Boolean(
+    state.connectedId &&
+    window.localStorage.getItem(edidPowerKey(state.connectedId)) === "true",
+  );
+}
+
+function edidAutoSwitchEnabled(): boolean {
+  return Boolean(
+    state.connectedId &&
+    window.localStorage.getItem(edidAutoKey(state.connectedId)) === "true",
+  );
+}
+
+function syncEdidControls(): void {
+  const powerConfirmed = edidPowerConfirmed();
+  app
+    .querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>(
+      '[data-action^="edid-"]',
+    )
+    .forEach((control) => {
+      if (control.dataset.action === "edid-power-confirmed") {
+        control.disabled = !state.connectedId;
+        return;
+      }
+      control.disabled = !state.connectedId || !powerConfirmed;
+    });
+  const deleteButton = app.querySelector<HTMLButtonElement>(
+    '[data-action="edid-delete"]',
+  );
+  const picker = app.querySelector<HTMLSelectElement>(
+    '[data-action="edid-picker"]',
+  );
+  if (deleteButton && picker) {
+    deleteButton.disabled =
+      deleteButton.disabled ||
+      picker.selectedOptions[0]?.dataset.custom !== "true";
+  }
+}
+
+function renderEdidControls(snapshot: PageSnapshot): void {
+  const picker = app.querySelector<HTMLSelectElement>(
+    '[data-action="edid-picker"]',
+  );
+  if (!picker) return;
+  const edid = edidState(snapshot);
+  picker.innerHTML = edid.options
+    .map(
+      (option) =>
+        `<option value="${html(option.id)}" data-custom="${option.custom}" ${
+          option.id === edid.current ? "selected" : ""
+        }>${html(option.label)}</option>`,
+    )
+    .join("");
+  picker.dataset.current = edid.current;
+  if (edid.current && edid.custom.includes(edid.current)) {
+    picker.selectedOptions[0]?.setAttribute("data-custom", "true");
+  }
+  syncEdidControls();
+}
+
 function bindNavigation(): void {
   app.querySelectorAll<HTMLButtonElement>("[data-page]").forEach((button) => {
     button.addEventListener("click", () => navigate(button.dataset.page as Page));
@@ -353,8 +425,12 @@ function bindNavigation(): void {
 function bindDeviceActions(page: Page): void {
   app.querySelector("#connect-device")?.addEventListener("click", connectSelected);
   app.querySelector<HTMLFormElement>("#device-form")?.addEventListener("submit", saveDevice);
-  app.querySelectorAll<HTMLInputElement | HTMLButtonElement>("[data-action]").forEach((control) => {
-    if (control instanceof HTMLInputElement && control.type === "checkbox") {
+  app.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>("[data-action]").forEach((control) => {
+    if (control instanceof HTMLSelectElement) {
+      control.addEventListener("change", () => {
+        if (control.dataset.action) void runControl(control, page);
+      });
+    } else if (control instanceof HTMLInputElement && control.type === "checkbox") {
       control.addEventListener("change", () => {
         if (control.dataset.action) void runControl(control, page);
       });
@@ -397,8 +473,20 @@ async function connectSelected(): Promise<void> {
     state.statsHistory = [];
     await render();
     const codec = state.codec;
-    await invoke("start_realtime", { id, codec });
-    if (window.localStorage.getItem("edid-auto-switch") === "true") {
+    let realtimeStarted = false;
+    try {
+      await invoke("start_realtime", { id, codec });
+      realtimeStarted = true;
+    } catch (error) {
+      setError(
+        `Device authenticated, but realtime input could not start: ${String(error)}`,
+      );
+    }
+    if (
+      edidAutoSwitchEnabled() &&
+      edidPowerConfirmed() &&
+      realtimeStarted
+    ) {
       try {
         const matched = await invoke<string>("match_local_edid", {
           id,
@@ -454,16 +542,52 @@ async function loadPageState(page: Page): Promise<void> {
       page,
     });
     target.textContent = JSON.stringify(snapshot, null, 2);
+    if (page === "Settings") renderEdidControls(snapshot);
   } catch (error) {
     target.textContent = `State unavailable: ${String(error)}`;
   }
 }
 
-async function runControl(control: HTMLInputElement | HTMLButtonElement, page: Page): Promise<void> {
+async function runControl(
+  control: HTMLInputElement | HTMLButtonElement | HTMLSelectElement,
+  page: Page,
+): Promise<void> {
   const action = control.dataset.action ?? "";
   const id = selectedDeviceId();
   if (!id) return setError("Connect a device first.");
   try {
+    if (
+      action === "edid-power-confirmed" &&
+      control instanceof HTMLInputElement
+    ) {
+      window.localStorage.setItem(
+        edidPowerKey(id),
+        String(control.checked),
+      );
+      if (!control.checked) {
+        window.localStorage.setItem(edidAutoKey(id), "false");
+        const auto = app.querySelector<HTMLInputElement>(
+          '[data-action="edid-auto-switch"]',
+        );
+        if (auto) auto.checked = false;
+      }
+      syncEdidControls();
+      setResult(
+        control.checked
+          ? "External power confirmed. EDID changes are now available."
+          : "External power confirmation cleared; EDID changes are disabled.",
+      );
+      return;
+    }
+    if (action.startsWith("edid-") && !edidPowerConfirmed()) {
+      setError(
+        "Confirm that the NanoKVM has its own USB-C power before changing the EDID.",
+      );
+      if (control instanceof HTMLInputElement && control.type === "checkbox") {
+        control.checked = false;
+      }
+      return;
+    }
     if (action === "edid-auto-switch" && control instanceof HTMLInputElement) {
       const confirmed =
         !control.checked ||
@@ -474,8 +598,69 @@ async function runControl(control: HTMLInputElement | HTMLButtonElement, page: P
         control.checked = false;
         return;
       }
-      window.localStorage.setItem("edid-auto-switch", String(control.checked));
+      window.localStorage.setItem(edidAutoKey(id), String(control.checked));
       setResult(`Automatic EDID matching ${control.checked ? "enabled" : "disabled"}.`);
+      return;
+    }
+    if (action === "edid-picker" && control instanceof HTMLSelectElement) {
+      const selected = control.value;
+      if (!selected || selected === control.dataset.current) return;
+      const confirmed = window.confirm(
+        `Change the KVM EDID to “${selected}”? This briefly interrupts the HDMI signal, and the previous EDID is restored if video does not return.`,
+      );
+      if (!confirmed) {
+        control.value = control.dataset.current ?? "";
+        return;
+      }
+      const result = await invokeAction(
+        id,
+        "edid-set",
+        { name: selected },
+        true,
+        null,
+        null,
+      );
+      setResult(JSON.stringify(result.value, null, 2));
+      await loadPageState(page);
+      return;
+    }
+    if (action === "edid-delete" && control instanceof HTMLButtonElement) {
+      const picker = app.querySelector<HTMLSelectElement>(
+        '[data-action="edid-picker"]',
+      );
+      const selected = picker?.value ?? "";
+      if (
+        !picker ||
+        !selected ||
+        picker.selectedOptions[0]?.dataset.custom !== "true"
+      ) {
+        setError("Only a custom EDID can be deleted.");
+        return;
+      }
+      const confirmed = window.confirm(
+        `Delete “${selected}”? If it is active, the KVM first switches to 1920×1080 @ 60 Hz.`,
+      );
+      if (!confirmed) return;
+      if (selected === picker.dataset.current) {
+        await invokeAction(
+          id,
+          "edid-set",
+          { name: "nanokvm-go-1920x1080-60" },
+          true,
+          null,
+          null,
+        );
+      }
+      await invokeAction(
+        id,
+        "edid-delete",
+        { name: selected },
+        true,
+        null,
+        null,
+      );
+      setResult(`Deleted custom EDID ${selected}.`);
+      await loadPageState(page);
       return;
     }
     if (action === "pointer-sensitivity" && control instanceof HTMLInputElement) {
@@ -506,10 +691,9 @@ async function runControl(control: HTMLInputElement | HTMLButtonElement, page: P
         "Generate an EDID for this monitor and briefly interrupt the KVM video signal?",
       );
       if (!confirmed) return;
-      const refresh = Number(window.prompt("Refresh rate in Hz", "60") ?? "0");
       const result = await invoke<string>("match_local_edid", {
         id,
-        refresh: Number.isFinite(refresh) && refresh > 0 ? refresh : 60,
+        refresh: 60,
         confirmed,
       });
       setResult(result);
@@ -629,10 +813,6 @@ function payloadForAction(action: string): Record<string, unknown> | null {
     case "image-unmount":
     case "image-delete":
       return action === "image-delete" ? { file: promptValue("Remote image file name") } : {};
-    case "edid-match-display":
-    case "edid-set":
-    case "edid-delete":
-      return { name: promptValue("EDID preset file name") };
     case "usb-id":
       return {
         enabled: true,
@@ -730,6 +910,12 @@ async function sensitiveCode(
 }
 
 async function pickAndUpload(action: string, id: string): Promise<void> {
+  if (action === "edid-upload" && !edidPowerConfirmed()) {
+    setError(
+      "Confirm that the NanoKVM has its own USB-C power before uploading an EDID.",
+    );
+    return;
+  }
   const input = document.createElement("input");
   input.type = "file";
   input.accept =
@@ -887,9 +1073,22 @@ async function installEventListeners(): Promise<void> {
       if (payload.deviceId !== state.connectedId) return;
       const target = app.querySelector<HTMLElement>("#screen-status");
       if (!target) return;
-      target.textContent = payload.connected
-        ? `${payload.channel.toUpperCase()} connected`
-        : `${payload.channel.toUpperCase()} error: ${payload.error ?? "disconnected"} (attempt ${payload.attempts})`;
+      if (payload.connected && payload.error) {
+        target.textContent = `${payload.channel.toUpperCase()} transport connected; native display unavailable`;
+      } else {
+        target.textContent = payload.connected
+          ? `${payload.channel.toUpperCase()} connected`
+          : `${payload.channel.toUpperCase()} error: ${payload.error ?? "disconnected"} (attempt ${payload.attempts})`;
+      }
+      const note = app.querySelector<HTMLElement>(".capability-note");
+      if (
+        payload.connected &&
+        payload.channel === "video" &&
+        payload.error &&
+        note
+      ) {
+        note.textContent = payload.error;
+      }
       if (!payload.connected && payload.error) setError(payload.error);
     }),
     await listen<StreamStats>("realtime://stats", ({ payload }) => {

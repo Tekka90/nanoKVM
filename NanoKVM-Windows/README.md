@@ -24,7 +24,9 @@ The Tauri boundary exposes narrow commands and events. The frontend never receiv
 
 ## Status
 
-The eight pages are wired to typed Rust commands. Device persistence, Windows Credential Manager, mDNS discovery, login and sensitive-action 2FA, supervised video/HID WebSockets, reconnect, keyboard/mouse/touch capture, uploads, EDID generation/rollback, state loading and Windows MFT/D3D11/DXGI hardware-decode submission are implemented. MFT H.264/H.265 output is currently drained without presenting it because the native Direct3D child surface is not yet attached to Tauri. No HTML/canvas fallback pretends that this path is complete. See `docs/PARITY.md` for the exact matrix and validation scope.
+The eight pages are wired to typed Rust commands. Device persistence, Windows Credential Manager, mDNS discovery, login and sensitive-action 2FA, supervised video/HID WebSockets, reconnect, keyboard/mouse/touch capture, uploads, EDID generation/rollback, state loading and Windows MFT/D3D11/DXGI hardware-decode submission are implemented.
+
+EDID settings list the firmware presets and uploaded custom files instead of asking for a file name. The app can generate an EDID for the monitor holding its window, and changing or auto-matching an EDID is gated by a per-device external USB-C power confirmation. MFT H.264/H.265 output is not yet presented because the native Direct3D child surface is not attached to Tauri. The video WebSocket remains connected as a signal probe so packet statistics and EDID signal detection still work; no HTML/canvas fallback pretends that presentation is complete. See `docs/PARITY.md` for the exact matrix and validation scope.
 
 ## Prerequisites
 
@@ -54,3 +56,20 @@ cargo tauri build --no-bundle
 ```
 
 On a non-Windows host, `cargo test --workspace` verifies platform-neutral logic, and `cargo check --workspace --target x86_64-pc-windows-msvc` validates the Windows APIs compile. Hardware decoder activation, latency and the Direct3D presenter require a Windows runner or physical Windows PC and cannot be validated on macOS alone.
+
+## Windows runtime diagnosis
+
+With this build, a successful connection should show `VIDEO transport connected; native display unavailable`, increasing packet counters, and an explicit presentation warning. That proves the authenticated WebSocket is delivering video data but is **not** a claim that picture rendering works. Capture the machine's Direct3D driver information before testing a future presenter build:
+
+```powershell
+Get-CimInstance Win32_VideoController |
+  Select-Object Name, DriverVersion, DriverDate
+dxdiag /dontskip /t "$env:TEMP\nanokvm-dxdiag.txt"
+```
+
+The executable remains unsigned. If Windows blocks it, build from the checked-out source with the prerequisites above:
+
+```powershell
+cargo tauri build --no-bundle
+& .\target\release\nanokvm-windows.exe
+```
